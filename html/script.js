@@ -40,8 +40,7 @@
 			HSN.SetupInventory(event.data)
 			DragAndDrop()
 		} else if (event.data.message == 'close') {
-			Display(false)
-			inventoryidd = null
+			HSN.CloseInventory()
 
 		} else if (event.data.message == 'refresh') {
 			HSN.RefreshInventory(event.data)
@@ -199,17 +198,18 @@
 						if (item != null) {
 							if ((item.name).split("_")[0] == "WEAPON" && item.metadata.durability !== undefined || null) {
 								$(".inventory-main-rightside").find("[inventory-slot=" + item.slot + "]").html('<div class="item-slot-img"><img src="images/' + item.name + '.png'+'" alt="' + item.name + '" /></div><div class="item-slot-count"><p>' + item.count + ' (' + (item.price) + '$)</p></div><div class="item-slot-label"><p><div class="item-slot-durability"><div class="item-slot-durability-bar"><p>100</p></div></div><div class="item-slot-label"><p>' + item.label + '</p></div></p></div>');
-								$(".inventory-main-rightside").find("[inventory-slot=" + item.slot + "]").data("ItemData", item);
-								$(".inventory-main-rightside").find("[inventory-slot=" + item.slot + "]").addClass("drag-item");
+								$(".inventory-main-rightside").find("[inventory-slot=" + item.slot + "]").data("ItemData", item).data("location", data.rightinventory.name);
+								//$(".inventory-main-rightside").find("[inventory-slot=" + item.slot + "]").addClass("drag-item");
 									var durability = HSN.InventoryGetDurability(item.metadata.durability)
 									$(".inventory-main-rightside").find("[inventory-slot=" + item.slot + "]").find(".item-slot-durability-bar").css({"background-color": durability[0],"width":durability[2]}).find('p').html(durability[1]);
 							} else {
 								$(".inventory-main-rightside").find("[inventory-slot=" + item.slot + "]").html('<div class="item-slot-img"><img src="images/' + item.name + '.png'+'" alt="' + item.name + '" /></div><div class="item-slot-count"><p>' + item.count + ' (' + (item.price) + '$)</p></div><div class="item-slot-label"><p><div class="item-slot-label"><p>' + item.label + '</p></div></p></div>');
-								$(".inventory-main-rightside").find("[inventory-slot=" + item.slot + "]").data("ItemData", item);
-								$(".inventory-main-rightside").find("[inventory-slot=" + item.slot + "]").addClass("drag-item");
+								$(".inventory-main-rightside").find("[inventory-slot=" + item.slot + "]").data("ItemData", item).data("location", data.rightinventory.name);
+								//$(".inventory-main-rightside").find("[inventory-slot=" + item.slot + "]").addClass("drag-item");
 							}
 						}
 					})
+
 				} else {
 					rightweight = 0
 					$(".rightside-weight").html('')
@@ -313,6 +313,22 @@
 		});
 	}
 
+	$(document).on("click", ".ItemBoxes", function(e){
+		if ($(this).data("location") !== undefined || null) {
+			e.preventDefault();
+			var Item = $(this).data("ItemData")
+			var location = $(this).data("location")
+			var htmlCount = $("#item-count").val()
+			if ((Item != undefined) && (location != undefined)) {
+				$.post("http://hsn-inventory/BuyFromShop", JSON.stringify({
+					data : Item,
+					location : location,
+					count : htmlCount
+				}));
+			}
+		}
+	})
+
 
 	$(document).on("mouseenter", ".ItemBoxes", function(e){
 		e.preventDefault();
@@ -322,14 +338,16 @@
 			$(".iteminfo-label").html('<p>'+Item.label+' <span style="float:right;">(' + Item.weight + 'g)</span></p><hr class="line">')
 			$(".iteminfo-description").html('')
 			if (Item.description) { $(".iteminfo-description").append('<p>'+Item.description+'</p>')};
-			if (Item.metadata.type) { $(".iteminfo-description").append('<p>'+Item.metadata.type+'</p>')};
-			if (Item.metadata.description) { $(".iteminfo-description").append('<p>'+Item.metadata.description+'</p>')};
-			if ((Item.name).split("_")[0] == "WEAPON" && Item.metadata.durability !== undefined || null) {
-				if (Item.metadata.ammo !== undefined || null) { $(".iteminfo-description").append('<p>Weapon Ammo: '+Item.metadata.ammo+'</p>') }
-				if (Item.metadata.durability !== undefined || null) { $(".iteminfo-description").append('<p>Durability: '+parseInt(Item.metadata.durability).toFixed(0)+''+'%</p>') }
-				if (Item.metadata.weaponlicense !== undefined || null) { $(".iteminfo-description").append('<p>Serial Number: '+Item.metadata.weaponlicense+'</p>') }
-				if (Item.metadata.components) { $(".iteminfo-description").append('<p>Components: '+Item.metadata.components+'</p>')};
-				if (Item.metadata.weapontint) { $(".iteminfo-description").append('<p>Tint: '+Item.metadata.weapontint+'</p>')};
+			if (Item.metadata) {
+				if (Item.metadata.type) { $(".iteminfo-description").append('<p>'+Item.metadata.type+'</p>')};
+				if (Item.metadata.description) { $(".iteminfo-description").append('<p>'+Item.metadata.description+'</p>')};
+				if ((Item.name).split("_")[0] == "WEAPON" && Item.metadata.durability !== undefined || null) {
+					if (Item.metadata.ammo !== undefined || null) { $(".iteminfo-description").append('<p>Weapon Ammo: '+Item.metadata.ammo+'</p>') }
+					if (Item.metadata.durability !== undefined || null) { $(".iteminfo-description").append('<p>Durability: '+parseInt(Item.metadata.durability).toFixed(0)+''+'%</p>') }
+					if (Item.metadata.weaponlicense !== undefined || null) { $(".iteminfo-description").append('<p>Serial Number: '+Item.metadata.weaponlicense+'</p>') }
+					if (Item.metadata.components) { $(".iteminfo-description").append('<p>Components: '+Item.metadata.components+'</p>')};
+					if (Item.metadata.weapontint) { $(".iteminfo-description").append('<p>Tint: '+Item.metadata.weapontint+'</p>')};
+				}
 			}
 		} else {
 			$(".iteminfo").fadeOut(100);
@@ -364,9 +382,17 @@
 		
 		Display(false)
 	});
+
+	is_table_equal = function(obj1, obj2) {
+		const obj1Len = Object.keys(obj1).length;
+		const obj2Len = Object.keys(obj2).length;
+		if (obj1Len === obj2Len) {
+			return Object.keys(obj1).every(key => obj2.hasOwnProperty(key) && obj2[key] === obj1[key]);
+		}
+		return false
+	}
 	 
 
-	// really need to redo a lot of this stuff to validate items existences
 	SwapItems = function(fromInventory, toInventory, fromSlot, toSlot) {
 		fromItem = fromInventory.find("[inventory-slot=" + fromSlot + "]").data("ItemData");
 		inv = fromInventory.data('invTier')
@@ -393,23 +419,23 @@
 					toInventory.find("[inventory-slot=" + toSlot + "]").addClass("drag-item");
 					$.post("http://hsn-inventory/saveinventorydata", JSON.stringify({
 						type : "swap",
-						toslot:  toSlot,
+						toSlot:  toSlot,
 						frominv : inv,
 						toinv : inv2,
 						toItem: fromItem,
-						fromslot: fromSlot,
+						fromSlot: fromSlot,
 						fromItem: toItem,
 						invid: toinvId,
 						invid2 :toinvId2
 					}));
-				} else if (fromItem.name == toItem.name && toItem.stackable && fromItem.metadata.type == toItem.metadata.type) { // stack
+				} else if (fromItem.name == toItem.name && toItem.stackable && is_table_equal(toItem.metadata, fromItem.metadata)) { // stack
 						var fromcount = Number(fromItem.count) // set strings to number //  idk why i did this but it wasn't working
 						var toCount = Number(toItem.count)
 						var newcount = (fromcount + toCount)
 						var newDataItem = {}
 						newDataItem.name = toItem.name
 						newDataItem.label = toItem.label
-						newDataItem.count = newcount
+						newDataItem.count = Number(newcount)
 						newDataItem.metadata = toItem.metadata
 						newDataItem.stackable = toItem.metadata
 						newDataItem.description = toItem.description
@@ -424,7 +450,7 @@
 							frominv : inv,
 							toinv : inv2,
 							emptyslot : fromSlot,
-							toslot: toSlot,
+							toSlot: toSlot,
 							item : newDataItem,
 							invid: toinvId,
 							invid2 :toinvId2
@@ -443,11 +469,11 @@
 						toInventory.find("[inventory-slot=" + toSlot + "]").addClass("drag-item");
 						$.post("http://hsn-inventory/saveinventorydata", JSON.stringify({
 							type: "swap",
-							toslot:  toSlot,
+							toSlot:  toSlot,
 							frominv : inv,
 							toinv : inv2,
 							toItem: fromItem,
-							fromslot: fromSlot,
+							fromSlot: fromSlot,
 							fromItem: toItem,
 							invid: toinvId,
 							invid2 :toinvId2
@@ -463,11 +489,11 @@
 						toInventory.find("[inventory-slot=" + toSlot + "]").addClass("drag-item");
 						$.post("http://hsn-inventory/saveinventorydata", JSON.stringify({
 							type : "swap",
-							toslot:  toSlot,
+							toSlot:  toSlot,
 							frominv : inv,
 							toinv : inv2,
 							toItem: fromItem,
-							fromslot: fromSlot,
+							fromSlot: fromSlot,
 							fromItem: toItem,
 							invid: toinvId,
 							invid2 :toinvId2
@@ -481,11 +507,11 @@
 						toInventory.find("[inventory-slot=" + toSlot + "]").addClass("drag-item");
 						$.post("http://hsn-inventory/saveinventorydata", JSON.stringify({
 							type : "swap",
-							toslot:  toSlot,
+							toSlot:  toSlot,
 							frominv : inv,
 							toinv : inv2,
 							toItem: fromItem,
-							fromslot: fromSlot,
+							fromSlot: fromSlot,
 							fromItem: toItem,
 							invid: toinvId,
 							invid2 :toinvId2
@@ -518,7 +544,7 @@
 							frominv : inv,
 							toinv : inv2,
 							emptyslot : fromSlot,
-							toslot: toSlot,
+							toSlot: toSlot,
 							item : fromItem,
 							invid: toinvId,
 							invid2 :toinvId2
@@ -528,7 +554,7 @@
 							var oldslotCount = fromItem.count - count
 							oldItemData = {}
 							newItemData = {}
-							oldItemData.count = oldslotCount
+							oldItemData.count = Number(oldslotCount)
 							oldItemData.name = fromItem.name
 							oldItemData.label = fromItem.label
 							oldItemData.stackable = fromItem.stackable
@@ -538,7 +564,7 @@
 							oldItemData.slot = fromSlot
 							oldItemData.price = fromItem.price
 
-							newItemData.count = count
+							newItemData.count = Number(count)
 							newItemData.label = fromItem.label
 							newItemData.name = fromItem.name
 							newItemData.stackable = fromItem.stackable
@@ -582,7 +608,7 @@
 								frominv : inv,
 								toinv : inv2,
 								emptyslot : fromSlot,
-								toslot: toSlot,
+								toSlot: toSlot,
 								item : fromItem,
 								invid: toinvId,
 								invid2 :toinvId2
